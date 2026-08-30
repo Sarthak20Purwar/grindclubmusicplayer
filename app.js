@@ -6,6 +6,10 @@ let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
 let audioContext, analyser, frequencies;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+}
+
 const formatTime = seconds => Number.isFinite(seconds) ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}` : '0:00';
 
 async function loadPlaylist() {

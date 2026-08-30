@@ -1,0 +1,19 @@
+{
+  "name": "Retro Video Music Player",
+  "short_name": "Retro Player",
+  "description": "A retro video-backed music player.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020502",
+  "theme_color": "#071006",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
