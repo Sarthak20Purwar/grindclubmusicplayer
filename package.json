@@ -1,0 +1,9 @@
+{
+  "name": "retro-video-music-player",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/local-server.mjs",
+    "generate-playlist": "node scripts/generate-playlist.mjs"
+  }
+}

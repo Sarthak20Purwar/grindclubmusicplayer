@@ -1,0 +1,46 @@
+{
+  "tracks": [
+    {
+      "title": "Tourner Dans Le Vide (Edit Audio)",
+      "artist": "Indila",
+      "audio": "playlist/Indila - Tourner Dans Le Vide (Edit Audio).mp3",
+      "video": "playlist/Indila - Tourner Dans Le Vide (Edit Audio).mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Tourner Dans Le Vide (Phonk, Slowed + Reverb)",
+      "artist": "Indila",
+      "audio": "playlist/Indila - Tourner Dans Le Vide (Phonk, Slowed + Reverb).mp3",
+      "video": "playlist/Indila - Tourner Dans Le Vide (Phonk, Slowed + Reverb).mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Salvatore",
+      "artist": "Lana Del Ray",
+      "audio": "playlist/Lana Del Ray - Salvatore.mp3",
+      "video": "playlist/Lana Del Ray - Salvatore.mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Brooklyn Baby",
+      "artist": "Lana Del Rey",
+      "audio": "playlist/Lana Del Rey - Brooklyn Baby.mp3",
+      "video": "playlist/Lana Del Rey - Brooklyn Baby.mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Summertime Sadness",
+      "artist": "Lana Del Rey",
+      "audio": "playlist/Lana Del Rey - Summertime Sadness.mp3",
+      "video": "playlist/Lana Del Rey - Summertime Sadness.mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Lilith",
+      "artist": "Saint Avangeline",
+      "audio": "playlist/Saint Avangeline - Lilith.mp3",
+      "video": "playlist/Saint Avangeline - Lilith.mp4",
+      "tone": "dark"
+    }
+  ]
+}

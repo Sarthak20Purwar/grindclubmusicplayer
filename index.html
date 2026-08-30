@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retro Video Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+  <video id="backgroundVideo" class="background-video dark" muted loop playsinline></video>
+  <div class="video-grade"></div>
+
+  <main class="deck">
+    <section id="playerWindow" class="window player-window minimized">
+      <header class="titlebar"><i></i><span>PLAYER</span><span class="fill"></span><button id="fullButton" type="button">FULL</button><button class="window-toggle" data-window="playerWindow" type="button" aria-label="Restore player" aria-expanded="false">□</button></header>
+      <div class="player-body">
+        <div class="analyzer-header"><strong>FREQUENCY ANALYZER</strong><span id="signalText">READY · 32 BAND</span></div>
+        <canvas id="analyzer" aria-label="Live audio spectrum" role="img"></canvas>
+        <div class="mini-controls"><button id="miniPrevious" type="button" aria-label="Previous track">◀</button><button id="miniPlay" type="button" aria-label="Play">▶</button><button id="miniNext" type="button" aria-label="Next track">▶▶</button></div>
+        <div class="display"><span id="state">■ READY</span><strong id="clock">0:00</strong><span id="trackNumber">TRK 00/00</span></div>
+        <div id="nowPlaying" class="now-playing">Loading playlist…</div>
+        <input id="seek" aria-label="Playback position" type="range" min="0" max="100" value="0">
+        <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
+        <div class="controls">
+          <button id="previous" type="button" aria-label="Previous track">◀</button>
+          <button id="play" type="button" aria-label="Play">▶</button>
+          <button id="next" type="button" aria-label="Next track">▶▶</button>
+          <button id="shuffle" type="button" aria-pressed="false">SHUFFLE</button>
+          <button id="repeat" type="button" aria-pressed="false">REPEAT</button>
+          <label>VOL <input id="volume" aria-label="Volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+        </div>
+        <p class="shortcuts">SPACE PLAY/PAUSE · ← → SEEK · N/P NEXT/PREVIOUS</p>
+      </div>
+    </section>
+
+    <section id="playlistWindow" class="window playlist-window">
+      <header class="titlebar"><i></i><span>PLAYLIST</span><span class="fill"></span><span id="trackCount">0 TRACKS</span><button class="window-toggle" data-window="playlistWindow" type="button" aria-label="Minimize playlist" aria-expanded="true">−</button></header>
+      <div id="playlistMini" class="playlist-mini" aria-live="polite">NOW —</div>
+      <label class="filter">FILTER <input id="filter" type="search" placeholder="Search tracks" aria-label="Filter playlist"></label>
+      <ol id="trackList" class="track-list"></ol>
+      <footer><span id="totalTime">--:--</span><span>VIDEO-GRADED</span></footer>
+    </section>
+  </main>
+
+  <audio id="audio" preload="metadata"></audio>
+  <script src="app.js"></script>
+</body>
+</html>

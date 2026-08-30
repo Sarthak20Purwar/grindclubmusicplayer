@@ -1,0 +1,67 @@
+/* Phone and small-tablet layout overrides */
+@media (max-width: 700px) {
+  body {
+    min-height: 100dvh;
+    padding: 16px 10px max(16px, env(safe-area-inset-bottom));
+    place-items: end stretch;
+  }
+
+  .deck {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .window { border-radius: 7px; }
+
+  .titlebar {
+    height: 36px;
+    padding: 7px 9px;
+    gap: 7px;
+    font-size: 9px;
+  }
+
+  .titlebar i { width: 9px; height: 9px; }
+  .titlebar #trackCount { font-size: 8px; white-space: nowrap; }
+  .titlebar #fullButton { padding: 4px 5px; font-size: 7px; }
+  .titlebar .window-toggle { width: 25px; min-width: 25px; }
+
+  .player-body { padding: 10px; }
+  .analyzer-header { font-size: 10px; letter-spacing: .04em; }
+  canvas { height: clamp(105px, 28vw, 145px); }
+
+  .mini-controls { justify-content: center; }
+  .mini-controls button { min-width: 46px; height: 38px; font-size: 17px; }
+
+  .display { padding: 8px; }
+  .display strong { font-size: 24px; }
+  .now-playing { font-size: 17px; }
+  .controls { gap: 7px; }
+  .controls button { min-width: 43px; height: 38px; font-size: 16px; }
+  .controls #play { width: 54px; }
+  .controls label { margin-left: 0; width: 100%; display: flex; gap: 8px; align-items: center; }
+  .controls label input { flex: 1; width: auto; }
+  .shortcuts { display: none; }
+
+  .playlist-window { max-height: min(46dvh, 410px); }
+  .filter { padding: 8px 10px; }
+  .filter input { min-height: 30px; }
+  .track-list { max-height: min(30dvh, 280px); padding: 5px; }
+  .track-list li { min-height: 42px; padding: 8px 7px; font-size: 17px; }
+  .playlist-mini { font-size: 16px; }
+}
+
+@media (max-width: 380px) {
+  .titlebar { font-size: 8px; }
+  .titlebar #trackCount { font-size: 7px; }
+  .analyzer-header span { display: none; }
+  .track-list li { font-size: 16px; }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  body { padding: 10px; }
+  .deck { grid-template-columns: 1.05fr .95fr; align-items: end; }
+  .playlist-window { max-height: 82dvh; }
+  .track-list { max-height: 45dvh; }
+  canvas { height: 90px; }
+}
