@@ -221,7 +221,7 @@ function drawSpectrum() {
     const miniRatio = devicePixelRatio || 1, miniWidth = miniCanvas.clientWidth * miniRatio, miniHeight = miniCanvas.clientHeight * miniRatio;
     if (miniCanvas.width !== miniWidth || miniCanvas.height !== miniHeight) { miniCanvas.width = miniWidth; miniCanvas.height = miniHeight; }
     miniPaint.fillStyle = '#020502'; miniPaint.fillRect(0, 0, miniWidth, miniHeight);
-    const bars = 20, miniGap = Math.max(1, miniRatio), miniBar = (miniWidth - miniGap * (bars - 1)) / bars;
+    const bars = 12, miniGap = Math.max(1, miniRatio), miniBar = (miniWidth - miniGap * (bars - 1)) / bars;
     for (let barIndex = 0; barIndex < bars; barIndex++) {
       const frequencyIndex = Math.floor((barIndex / bars) ** 1.65 * (frequencies?.length - 1 || 0));
       const value = frequencies?.[frequencyIndex] || 0;
