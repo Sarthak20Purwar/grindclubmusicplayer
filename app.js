@@ -4,7 +4,7 @@ const video = $('#backgroundVideo');
 const list = $('#trackList');
 const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
-let audioContext, analyser, frequencies, waveform;
+let audioContext, analyser, frequencies, waveform, analysisAudio;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
 const miniCanvas = $('#miniAnalyzer'), miniPaint = miniCanvas.getContext('2d');
 const fallbackFrequencies = new Uint8Array(256), fallbackWaveform = new Uint8Array(512);
@@ -113,7 +113,8 @@ function waitForVideo() {
 }
 
 async function playCurrent() {
-  if (video.src) {
+  startAnalysis();
+  if (videoEnabled && video.src) {
     await waitForVideo();
     await video.play().catch(() => {});
   }
@@ -186,7 +187,6 @@ function startAnalysis() {
   // A MediaElementSource routes sound through Web Audio. iOS commonly
   // suspends that audio route on lock, even though the media clock continues.
   // Keep native audio output on phones so lock-screen playback stays audible.
-  if (iosDevice) return;
   if (audioContext) { audioContext.resume(); return; }
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
@@ -196,9 +196,24 @@ function startAnalysis() {
   analyser.smoothingTimeConstant = .72;
   frequencies = new Uint8Array(analyser.frequencyBinCount);
   waveform = new Uint8Array(analyser.fftSize);
-  const source = audioContext.createMediaElementSource(audio);
+  if (iosDevice) {
+    analysisAudio = new Audio();
+    analysisAudio.muted = true;
+    analysisAudio.preload = 'auto';
+  }
+  const source = audioContext.createMediaElementSource(analysisAudio || audio);
   source.connect(analyser);
   analyser.connect(audioContext.destination);
+}
+
+function syncAnalysisAudio(shouldPlay = false) {
+  if (!analysisAudio || !audio.currentSrc) return;
+  if (analysisAudio.src !== audio.currentSrc) {
+    analysisAudio.src = audio.currentSrc;
+    analysisAudio.load();
+  }
+  if (Math.abs(analysisAudio.currentTime - audio.currentTime) > .35) analysisAudio.currentTime = audio.currentTime;
+  if (shouldPlay) analysisAudio.play().catch(() => {});
 }
 
 function updateFallbackVisualizer() {
@@ -287,16 +302,18 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
   requestAnimationFrame(fitMiniAnalyzer);
 }));
-audio.addEventListener('play', () => { startAnalysis(); if (videoEnabled) video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; window.setTimeout(preloadRemainingMedia, 1500); });
-audio.addEventListener('pause', () => { video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+audio.addEventListener('play', () => { startAnalysis(); syncAnalysisAudio(true); if (videoEnabled) video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; window.setTimeout(preloadRemainingMedia, 1500); });
+audio.addEventListener('pause', () => { analysisAudio?.pause(); video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audio.addEventListener('seeked', () => { if (videoEnabled && video.duration) video.currentTime = audio.currentTime % video.duration; });
-audio.addEventListener('timeupdate', () => { const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
+audio.addEventListener('timeupdate', () => { syncAnalysisAudio(playing); const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
 audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(current + 1));
 document.addEventListener('visibilitychange', () => {
   // iOS can mute/suspend a web audio session when a video keeps decoding in
   // the background. Keep music alive while pausing only the visual layer.
-  if (document.hidden) video.pause();
+  if (document.hidden) { analysisAudio?.pause(); audioContext?.suspend(); video.pause(); }
   else if (videoEnabled && playing && video.src) {
+    startAnalysis();
+    syncAnalysisAudio(true);
     if (video.duration) video.currentTime = audio.currentTime % video.duration;
     video.play().catch(() => {});
   }
