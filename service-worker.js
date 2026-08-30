@@ -21,9 +21,12 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  // Let the browser stream large music and video files directly. Caching them
+  // here can delay seeking/playback and can quickly exhaust mobile storage.
+  if (event.request.destination === 'audio' || event.request.destination === 'video') return;
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
     const copy = response.clone();
-    if (new URL(event.request.url).origin === self.location.origin && !event.request.url.match(/\.(mp3|m4a|ogg|wav|mp4|webm|mov)$/i)) {
+    if (new URL(event.request.url).origin === self.location.origin) {
       caches.open(CACHE).then(cache => cache.put(event.request, copy));
     }
     return response;

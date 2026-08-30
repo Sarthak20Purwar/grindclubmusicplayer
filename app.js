@@ -42,8 +42,16 @@ async function selectTrack(index, autoplay = true) {
 function waitForVideo() {
   if (!video.src || video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return Promise.resolve();
   return new Promise(resolve => {
-    const ready = () => { video.removeEventListener('canplay', ready); resolve(); };
+    const ready = () => { cleanup(); resolve(); };
+    const unavailable = () => { cleanup(); resolve(); };
+    const cleanup = () => {
+      video.removeEventListener('canplay', ready);
+      video.removeEventListener('error', unavailable);
+      clearTimeout(timer);
+    };
+    const timer = setTimeout(unavailable, 8000);
     video.addEventListener('canplay', ready, { once: true });
+    video.addEventListener('error', unavailable, { once: true });
   });
 }
 
