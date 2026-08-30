@@ -3,13 +3,12 @@ const audio = $('#audio');
 const video = $('#backgroundVideo');
 const list = $('#trackList');
 const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
+let tracks = [], current = 0, playing = false, shuffle = false, repeat = false, shuffleQueue = [];
 let audioContext, analyser, frequencies, waveform, analysisAudio;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
 const miniCanvas = $('#miniAnalyzer'), miniPaint = miniCanvas.getContext('2d');
 const fallbackFrequencies = new Uint8Array(256), fallbackWaveform = new Uint8Array(512);
-let preloadStarted = false;
-const mediaPreloads = [];
+let preloadedIndex = -1, preloadedAudio, preloadedVideo;
 let videoEnabled = true;
 try { videoEnabled = localStorage.getItem('retro-player-video-mode') !== 'music-only'; } catch (_) {}
 
@@ -46,6 +45,50 @@ async function selectTrack(index, autoplay = true) {
   } else video.removeAttribute('src');
   renderTracks();
   if (autoplay) await playCurrent();
+}
+
+function refillShuffleQueue() {
+  shuffleQueue = tracks.map((_, index) => index).filter(index => index !== current);
+  for (let index = shuffleQueue.length - 1; index > 0; index--) {
+    const pick = Math.floor(Math.random() * (index + 1));
+    [shuffleQueue[index], shuffleQueue[pick]] = [shuffleQueue[pick], shuffleQueue[index]];
+  }
+}
+
+function nextTrackIndex() {
+  if (!shuffle) return (current + 1) % tracks.length;
+  if (!shuffleQueue.length) refillShuffleQueue();
+  return shuffleQueue.shift();
+}
+
+function peekNextTrackIndex() {
+  if (!shuffle) return (current + 1) % tracks.length;
+  if (!shuffleQueue.length) refillShuffleQueue();
+  return shuffleQueue[0];
+}
+
+function preloadNextTrack() {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!tracks.length || connection?.saveData || /2g/.test(connection?.effectiveType || '')) return;
+  const nextIndex = peekNextTrackIndex();
+  if (nextIndex === preloadedIndex) return;
+  preloadedAudio?.pause();
+  preloadedVideo?.pause();
+  const nextTrack = tracks[nextIndex];
+  preloadedAudio = new Audio();
+  preloadedAudio.preload = 'auto';
+  preloadedAudio.src = nextTrack.audio;
+  preloadedAudio.load();
+  preloadedVideo = null;
+  if (videoEnabled && nextTrack.video) {
+    preloadedVideo = document.createElement('video');
+    preloadedVideo.preload = 'auto';
+    preloadedVideo.muted = true;
+    preloadedVideo.playsInline = true;
+    preloadedVideo.src = nextTrack.video;
+    preloadedVideo.load();
+  }
+  preloadedIndex = nextIndex;
 }
 
 function applyVideoMode() {
@@ -87,7 +130,7 @@ function setupMediaSession() {
     play: () => playCurrent(),
     pause: () => audio.pause(),
     previoustrack: () => selectTrack(current - 1),
-    nexttrack: () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1),
+    nexttrack: () => selectTrack(nextTrackIndex()),
     seekbackward: details => { audio.currentTime = Math.max(0, audio.currentTime - (details.seekOffset || 10)); },
     seekforward: details => { audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + (details.seekOffset || 10)); }
   };
@@ -119,31 +162,6 @@ async function playCurrent() {
     await video.play().catch(() => {});
   }
   return audio.play().catch(() => setPlaying(false));
-}
-
-function preloadRemainingMedia() {
-  if (preloadStarted) return;
-  preloadStarted = true;
-  // Keep the elements alive so the browser can retain its media buffers. The
-  // browser schedules these lower-priority requests behind the active track.
-  tracks.forEach((track, index) => {
-    if (index === current) return;
-    const audioPreload = new Audio();
-    audioPreload.preload = 'auto';
-    audioPreload.src = track.audio;
-    audioPreload.load();
-    mediaPreloads.push(audioPreload);
-
-    if (track.video && videoEnabled) {
-      const videoPreload = document.createElement('video');
-      videoPreload.preload = 'auto';
-      videoPreload.muted = true;
-      videoPreload.playsInline = true;
-      videoPreload.src = track.video;
-      videoPreload.load();
-      mediaPreloads.push(videoPreload);
-    }
-  });
 }
 
 function setPlaying(value) {
@@ -192,7 +210,7 @@ function startAnalysis() {
   if (!AudioContext) return;
   audioContext = new AudioContext();
   analyser = audioContext.createAnalyser();
-  analyser.fftSize = 512;
+  analyser.fftSize = 256;
   analyser.smoothingTimeConstant = .72;
   frequencies = new Uint8Array(analyser.frequencyBinCount);
   waveform = new Uint8Array(analyser.fftSize);
@@ -243,7 +261,7 @@ function fitMiniAnalyzer() {
 }
 
 function drawSpectrum() {
-  const ratio = devicePixelRatio || 1, width = canvas.clientWidth * ratio, height = canvas.clientHeight * ratio;
+  const ratio = Math.min(devicePixelRatio || 1, 1.5), width = canvas.clientWidth * ratio, height = canvas.clientHeight * ratio;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   paint.fillStyle = '#020502'; paint.fillRect(0, 0, width, height);
   if (analyser) { analyser.getByteFrequencyData(frequencies); analyser.getByteTimeDomainData(waveform); }
@@ -264,7 +282,7 @@ function drawSpectrum() {
   paint.fillStyle = '#39ff14'; paint.font = `${Math.max(8, 10 * ratio)}px monospace`; paint.textAlign = 'center';
   labels.forEach((label, i) => paint.fillText(label, side + (i + .5) * ((width - side * 2) / labels.length), height - 5 * ratio));
   if (miniCanvas.offsetParent) {
-    const miniRatio = devicePixelRatio || 1, miniWidth = miniCanvas.clientWidth * miniRatio, miniHeight = miniCanvas.clientHeight * miniRatio;
+    const miniRatio = Math.min(devicePixelRatio || 1, 1.5), miniWidth = miniCanvas.clientWidth * miniRatio, miniHeight = miniCanvas.clientHeight * miniRatio;
     if (miniCanvas.width !== miniWidth || miniCanvas.height !== miniHeight) { miniCanvas.width = miniWidth; miniCanvas.height = miniHeight; }
     miniPaint.fillStyle = '#020502'; miniPaint.fillRect(0, 0, miniWidth, miniHeight);
     const middle = miniHeight / 2, points = Math.min(96, displayWaveform.length);
@@ -286,11 +304,11 @@ function drawSpectrum() {
 
 $('#play').addEventListener('click', () => playing ? audio.pause() : playCurrent());
 $('#previous').addEventListener('click', () => selectTrack(current - 1));
-$('#next').addEventListener('click', () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1));
+$('#next').addEventListener('click', () => selectTrack(nextTrackIndex()));
 $('#miniPrevious').addEventListener('click', () => selectTrack(current - 1));
 $('#miniPlay').addEventListener('click', () => playing ? audio.pause() : playCurrent());
-$('#miniNext').addEventListener('click', () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1));
-$('#shuffle').addEventListener('click', event => { shuffle = !shuffle; event.currentTarget.setAttribute('aria-pressed', shuffle); });
+$('#miniNext').addEventListener('click', () => selectTrack(nextTrackIndex()));
+$('#shuffle').addEventListener('click', event => { shuffle = !shuffle; shuffleQueue = []; preloadedIndex = -1; event.currentTarget.setAttribute('aria-pressed', shuffle); });
 $('#repeat').addEventListener('click', event => { repeat = !repeat; event.currentTarget.setAttribute('aria-pressed', repeat); });
 $('#videoMode').addEventListener('click', () => { videoEnabled = !videoEnabled; applyVideoMode(); });
 $('#miniVideoMode').addEventListener('click', () => { videoEnabled = !videoEnabled; applyVideoMode(); });
@@ -307,11 +325,12 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
   requestAnimationFrame(fitMiniAnalyzer);
 }));
-audio.addEventListener('play', () => { startAnalysis(); syncAnalysisAudio(true); if (videoEnabled) video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; window.setTimeout(preloadRemainingMedia, 1500); });
+audio.addEventListener('play', () => { startAnalysis(); syncAnalysisAudio(true); if (videoEnabled) video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
 audio.addEventListener('pause', () => { analysisAudio?.pause(); video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audio.addEventListener('seeked', () => { if (videoEnabled && video.duration) video.currentTime = audio.currentTime % video.duration; });
-audio.addEventListener('timeupdate', () => { syncAnalysisAudio(playing); const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
-audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(current + 1));
+audio.addEventListener('timeupdate', () => { syncAnalysisAudio(playing); if (audio.currentTime >= 8) preloadNextTrack(); const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
+audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(nextTrackIndex()));
+audio.addEventListener('error', () => { $('#state').textContent = '■ SKIPPING'; window.setTimeout(() => selectTrack(nextTrackIndex()), 300); });
 document.addEventListener('visibilitychange', () => {
   // iOS can mute/suspend a web audio session when a video keeps decoding in
   // the background. Keep music alive while pausing only the visual layer.
@@ -323,7 +342,7 @@ document.addEventListener('visibilitychange', () => {
     video.play().catch(() => {});
   }
 });
-document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : playCurrent(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(current + 1); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
+document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : playCurrent(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(nextTrackIndex()); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
 
 drawSpectrum();
 setupMediaSession();
