@@ -30,6 +30,7 @@ async function loadPlaylist() {
 async function selectTrack(index, autoplay = true) {
   current = (index + tracks.length) % tracks.length;
   const track = tracks[current];
+  resetAnalysis();
   audio.src = track.audio;
   $('#nowPlaying').textContent = `${String(current + 1).padStart(2, '0')}. ${track.title} — ${track.artist}`;
   $('#playlistMini').textContent = `NOW ${String(current + 1).padStart(2, '0')} · ${track.title} — ${track.artist}`;
@@ -44,6 +45,17 @@ async function selectTrack(index, autoplay = true) {
   } else video.removeAttribute('src');
   renderTracks();
   if (autoplay) await playCurrent();
+}
+
+function resetAnalysis() {
+  analysisAudio?.pause();
+  const previousContext = audioContext;
+  audioContext = undefined;
+  analyser = undefined;
+  frequencies = undefined;
+  waveform = undefined;
+  analysisAudio = undefined;
+  previousContext?.close().catch(() => {});
 }
 
 function refillShuffleQueue() {
