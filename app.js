@@ -276,7 +276,7 @@ function drawSpectrum() {
   const ratio = Math.min(devicePixelRatio || 1, 1.5), width = canvas.clientWidth * ratio, height = canvas.clientHeight * ratio;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   paint.fillStyle = '#020502'; paint.fillRect(0, 0, width, height);
-  let liveAnalysis = analyser && (!analysisAudio || !analysisAudio.paused);
+  let liveAnalysis = analyser && audioContext?.state === 'running' && (!analysisAudio || !analysisAudio.paused);
   if (liveAnalysis) {
     analyser.getByteFrequencyData(frequencies);
     analyser.getByteTimeDomainData(waveform);
