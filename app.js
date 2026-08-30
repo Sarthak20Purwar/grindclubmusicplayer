@@ -212,6 +212,15 @@ audio.addEventListener('pause', () => { video.pause(); setPlaying(false); if ('m
 audio.addEventListener('seeked', () => { if (video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
 audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(current + 1));
+document.addEventListener('visibilitychange', () => {
+  // iOS can mute/suspend a web audio session when a video keeps decoding in
+  // the background. Keep music alive while pausing only the visual layer.
+  if (document.hidden) video.pause();
+  else if (playing && video.src) {
+    if (video.duration) video.currentTime = audio.currentTime % video.duration;
+    video.play().catch(() => {});
+  }
+});
 document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : playCurrent(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(current + 1); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
 
 drawSpectrum();
