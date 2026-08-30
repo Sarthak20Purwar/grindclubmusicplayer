@@ -31,6 +31,7 @@ async function selectTrack(index, autoplay = true) {
   $('#nowPlaying').textContent = `${String(current + 1).padStart(2, '0')}. ${track.title} — ${track.artist}`;
   $('#playlistMini').textContent = `NOW ${String(current + 1).padStart(2, '0')} · ${track.title} — ${track.artist}`;
   $('#trackNumber').textContent = `TRK ${String(current + 1).padStart(2, '0')}/${String(tracks.length).padStart(2, '0')}`;
+  updateMediaSession(track);
   video.className = `background-video ${track.tone === 'light' ? 'light' : 'dark'}`;
   if (track.video) {
     video.src = track.video;
@@ -39,6 +40,30 @@ async function selectTrack(index, autoplay = true) {
   } else video.removeAttribute('src');
   renderTracks();
   if (autoplay) await playCurrent();
+}
+
+function updateMediaSession(track) {
+  if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: track.title,
+    artist: track.artist,
+    album: 'Retro Video Music Player'
+  });
+}
+
+function setupMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  const actions = {
+    play: () => playCurrent(),
+    pause: () => audio.pause(),
+    previoustrack: () => selectTrack(current - 1),
+    nexttrack: () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1),
+    seekbackward: details => { audio.currentTime = Math.max(0, audio.currentTime - (details.seekOffset || 10)); },
+    seekforward: details => { audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + (details.seekOffset || 10)); }
+  };
+  Object.entries(actions).forEach(([action, handler]) => {
+    try { navigator.mediaSession.setActionHandler(action, handler); } catch (_) {}
+  });
 }
 
 function waitForVideo() {
@@ -182,12 +207,13 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   button.setAttribute('aria-label', `${minimized ? 'Restore' : 'Minimize'} ${button.dataset.window === 'playerWindow' ? 'player' : 'playlist'}`);
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
 }));
-audio.addEventListener('play', () => { startAnalysis(); video.play().catch(() => {}); setPlaying(true); window.setTimeout(preloadRemainingMedia, 1500); });
-audio.addEventListener('pause', () => { video.pause(); setPlaying(false); });
+audio.addEventListener('play', () => { startAnalysis(); video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; window.setTimeout(preloadRemainingMedia, 1500); });
+audio.addEventListener('pause', () => { video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audio.addEventListener('seeked', () => { if (video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
 audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(current + 1));
 document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : playCurrent(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(current + 1); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
 
 drawSpectrum();
+setupMediaSession();
 loadPlaylist().catch(error => { $('#nowPlaying').textContent = error.message; $('#state').textContent = '■ NO PLAYLIST'; });
