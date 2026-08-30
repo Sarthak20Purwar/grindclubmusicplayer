@@ -46,7 +46,7 @@ body.music-only .video-grade {
   position: absolute;
   top: 4px;
   left: 53px;
-  width: 64px;
+  width: 0;
   min-width: 0;
   height: 26px;
   margin: 0;
