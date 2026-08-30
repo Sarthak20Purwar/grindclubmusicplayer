@@ -2,6 +2,7 @@ const $ = selector => document.querySelector(selector);
 const audio = $('#audio');
 const video = $('#backgroundVideo');
 const list = $('#trackList');
+const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
 let audioContext, analyser, frequencies;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
@@ -153,6 +154,10 @@ function loadDurations() {
 }
 
 function startAnalysis() {
+  // A MediaElementSource routes sound through Web Audio. iOS commonly
+  // suspends that audio route on lock, even though the media clock continues.
+  // Keep native audio output on phones so lock-screen playback stays audible.
+  if (mobileDevice) return;
   if (audioContext) { audioContext.resume(); return; }
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
