@@ -49,9 +49,13 @@ async function selectTrack(index, autoplay = true) {
 function applyVideoMode() {
   document.body.classList.toggle('music-only', !videoEnabled);
   const button = $('#videoMode');
+  const miniButton = $('#miniVideoMode');
   button.textContent = videoEnabled ? 'VIDEO ON' : 'MUSIC ONLY';
   button.setAttribute('aria-pressed', String(videoEnabled));
   button.setAttribute('aria-label', videoEnabled ? 'Switch to music only mode' : 'Switch to video mode');
+  miniButton.textContent = videoEnabled ? 'VID' : 'MUSIC';
+  miniButton.setAttribute('aria-pressed', String(videoEnabled));
+  miniButton.setAttribute('aria-label', videoEnabled ? 'Switch to music only mode' : 'Switch to video mode');
   try { localStorage.setItem('retro-player-video-mode', videoEnabled ? 'video' : 'music-only'); } catch (_) {}
   if (!videoEnabled) {
     video.pause();
@@ -224,6 +228,7 @@ $('#miniNext').addEventListener('click', () => selectTrack(shuffle ? Math.floor(
 $('#shuffle').addEventListener('click', event => { shuffle = !shuffle; event.currentTarget.setAttribute('aria-pressed', shuffle); });
 $('#repeat').addEventListener('click', event => { repeat = !repeat; event.currentTarget.setAttribute('aria-pressed', repeat); });
 $('#videoMode').addEventListener('click', () => { videoEnabled = !videoEnabled; applyVideoMode(); });
+$('#miniVideoMode').addEventListener('click', () => { videoEnabled = !videoEnabled; applyVideoMode(); });
 $('#volume').addEventListener('input', event => { audio.volume = event.target.value; });
 $('#seek').addEventListener('input', event => { if (audio.duration) audio.currentTime = audio.duration * event.target.value / 100; });
 $('#filter').addEventListener('input', renderTracks);

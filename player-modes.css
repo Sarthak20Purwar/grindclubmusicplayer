@@ -11,3 +11,12 @@ body.music-only .video-grade {
 #videoMode[aria-pressed="false"] {
   color: #d8d8d4;
 }
+
+#miniVideoMode {
+  min-width: 48px;
+  color: var(--green);
+}
+
+#miniVideoMode[aria-pressed="false"] {
+  color: #d8d8d4;
+}
