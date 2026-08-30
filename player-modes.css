@@ -20,3 +20,15 @@ body.music-only .video-grade {
 #miniVideoMode[aria-pressed="false"] {
   color: #d8d8d4;
 }
+
+#miniAnalyzer {
+  display: none;
+}
+
+.player-window.minimized #miniAnalyzer {
+  display: block;
+  width: 100%;
+  height: 58px;
+  margin-top: 8px;
+  border-color: #2b6525;
+}
