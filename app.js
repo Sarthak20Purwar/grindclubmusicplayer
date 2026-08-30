@@ -2,7 +2,6 @@ const $ = selector => document.querySelector(selector);
 const audio = $('#audio');
 const video = $('#backgroundVideo');
 const list = $('#trackList');
-const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false, shuffleQueue = [];
 let audioContext, analyser, frequencies, waveform, analysisAudio;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
@@ -202,9 +201,8 @@ function loadDurations() {
 }
 
 function startAnalysis() {
-  // A MediaElementSource routes sound through Web Audio. iOS commonly
-  // suspends that audio route on lock, even though the media clock continues.
-  // Keep native audio output on phones so lock-screen playback stays audible.
+  // Keep audible music on the browser's native media path. A separate muted
+  // track supplies analyser data, so background tabs cannot silence playback.
   if (audioContext) { audioContext.resume(); return; }
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
@@ -214,19 +212,15 @@ function startAnalysis() {
   analyser.smoothingTimeConstant = .72;
   frequencies = new Uint8Array(analyser.frequencyBinCount);
   waveform = new Uint8Array(analyser.fftSize);
-  if (iosDevice) {
-    analysisAudio = new Audio();
-    analysisAudio.muted = true;
-    analysisAudio.preload = 'auto';
-  }
-  const source = audioContext.createMediaElementSource(analysisAudio || audio);
+  analysisAudio = new Audio();
+  analysisAudio.muted = true;
+  analysisAudio.preload = 'auto';
+  const source = audioContext.createMediaElementSource(analysisAudio);
   source.connect(analyser);
-  if (analysisAudio) {
-    const silentGain = audioContext.createGain();
-    silentGain.gain.value = 0;
-    analyser.connect(silentGain);
-    silentGain.connect(audioContext.destination);
-  } else analyser.connect(audioContext.destination);
+  const silentGain = audioContext.createGain();
+  silentGain.gain.value = 0;
+  analyser.connect(silentGain);
+  silentGain.connect(audioContext.destination);
 }
 
 function syncAnalysisAudio(shouldPlay = false) {
@@ -335,16 +329,16 @@ document.addEventListener('visibilitychange', () => {
   // iOS can mute/suspend a web audio session when a video keeps decoding in
   // the background. Keep music alive while pausing only the visual layer.
   if (document.hidden) {
-    // Desktop audio is routed through Web Audio for the live analyser, so do
-    // not suspend that context when a tab/window is hidden.
-    if (iosDevice) { analysisAudio?.pause(); audioContext?.suspend(); }
+    analysisAudio?.pause();
+    audioContext?.suspend();
     video.pause();
   }
-  else if (videoEnabled && playing && video.src) {
-    startAnalysis();
-    syncAnalysisAudio(true);
-    if (video.duration) video.currentTime = audio.currentTime % video.duration;
-    video.play().catch(() => {});
+  else {
+    if (playing) { startAnalysis(); syncAnalysisAudio(true); }
+    if (videoEnabled && playing && video.src) {
+      if (video.duration) video.currentTime = audio.currentTime % video.duration;
+      video.play().catch(() => {});
+    }
   }
 });
 document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : playCurrent(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(nextTrackIndex()); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
