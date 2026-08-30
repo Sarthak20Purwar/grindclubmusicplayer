@@ -2,6 +2,7 @@ const $ = selector => document.querySelector(selector);
 const audio = $('#audio');
 const video = $('#backgroundVideo');
 const list = $('#trackList');
+const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false, shuffleQueue = [];
 let audioContext, analyser, frequencies, waveform, analysisAudio;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
@@ -214,6 +215,7 @@ function loadDurations() {
 function startAnalysis() {
   // Keep audible music on the browser's native media path. A separate muted
   // track supplies analyser data, so background tabs cannot silence playback.
+  if (mobileDevice) return;
   if (audioContext) { audioContext.resume(); return; }
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
@@ -276,7 +278,7 @@ function drawSpectrum() {
   const ratio = Math.min(devicePixelRatio || 1, 1.5), width = canvas.clientWidth * ratio, height = canvas.clientHeight * ratio;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   paint.fillStyle = '#020502'; paint.fillRect(0, 0, width, height);
-  let liveAnalysis = analyser && audioContext?.state === 'running' && (!analysisAudio || !analysisAudio.paused);
+  let liveAnalysis = !mobileDevice && analyser && audioContext?.state === 'running' && (!analysisAudio || !analysisAudio.paused);
   if (liveAnalysis) {
     analyser.getByteFrequencyData(frequencies);
     analyser.getByteTimeDomainData(waveform);
