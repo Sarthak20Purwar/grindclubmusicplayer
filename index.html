@@ -16,6 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile.css">
+  <link rel="stylesheet" href="player-modes.css">
 </head>
 <body>
   <video id="backgroundVideo" class="background-video dark" muted loop playsinline preload="auto"></video>
@@ -38,6 +39,7 @@
           <button id="next" type="button" aria-label="Next track">▶▶</button>
           <button id="shuffle" type="button" aria-pressed="false">SHUFFLE</button>
           <button id="repeat" type="button" aria-pressed="false">REPEAT</button>
+          <button id="videoMode" type="button" aria-pressed="true" aria-label="Switch to music only mode">VIDEO ON</button>
           <label>VOL <input id="volume" aria-label="Volume" type="range" min="0" max="1" step="0.01" value="0.8"></label>
         </div>
         <p class="shortcuts">SPACE PLAY/PAUSE · ← → SEEK · N/P NEXT/PREVIOUS</p>

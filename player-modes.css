@@ -1,0 +1,13 @@
+body.music-only .background-video,
+body.music-only .video-grade {
+  opacity: 0;
+}
+
+#videoMode {
+  min-width: 76px;
+  color: var(--green);
+}
+
+#videoMode[aria-pressed="false"] {
+  color: #d8d8d4;
+}

@@ -8,6 +8,8 @@ let audioContext, analyser, frequencies;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
 let preloadStarted = false;
 const mediaPreloads = [];
+let videoEnabled = true;
+try { videoEnabled = localStorage.getItem('retro-player-video-mode') !== 'music-only'; } catch (_) {}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
@@ -36,11 +38,32 @@ async function selectTrack(index, autoplay = true) {
   video.className = `background-video ${track.tone === 'light' ? 'light' : 'dark'}`;
   if (track.video) {
     video.src = track.video;
-    video.load();
     video.currentTime = 0;
+    video.preload = videoEnabled ? 'auto' : 'none';
+    if (videoEnabled) video.load();
   } else video.removeAttribute('src');
   renderTracks();
   if (autoplay) await playCurrent();
+}
+
+function applyVideoMode() {
+  document.body.classList.toggle('music-only', !videoEnabled);
+  const button = $('#videoMode');
+  button.textContent = videoEnabled ? 'VIDEO ON' : 'MUSIC ONLY';
+  button.setAttribute('aria-pressed', String(videoEnabled));
+  button.setAttribute('aria-label', videoEnabled ? 'Switch to music only mode' : 'Switch to video mode');
+  try { localStorage.setItem('retro-player-video-mode', videoEnabled ? 'video' : 'music-only'); } catch (_) {}
+  if (!videoEnabled) {
+    video.pause();
+    video.preload = 'none';
+  } else if (video.src) {
+    video.preload = 'auto';
+    video.load();
+    if (playing) {
+      video.currentTime = audio.currentTime % (video.duration || Infinity);
+      video.play().catch(() => {});
+    }
+  }
 }
 
 function updateMediaSession(track) {
@@ -104,7 +127,7 @@ function preloadRemainingMedia() {
     audioPreload.load();
     mediaPreloads.push(audioPreload);
 
-    if (track.video) {
+    if (track.video && videoEnabled) {
       const videoPreload = document.createElement('video');
       videoPreload.preload = 'auto';
       videoPreload.muted = true;
@@ -200,6 +223,7 @@ $('#miniPlay').addEventListener('click', () => playing ? audio.pause() : playCur
 $('#miniNext').addEventListener('click', () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1));
 $('#shuffle').addEventListener('click', event => { shuffle = !shuffle; event.currentTarget.setAttribute('aria-pressed', shuffle); });
 $('#repeat').addEventListener('click', event => { repeat = !repeat; event.currentTarget.setAttribute('aria-pressed', repeat); });
+$('#videoMode').addEventListener('click', () => { videoEnabled = !videoEnabled; applyVideoMode(); });
 $('#volume').addEventListener('input', event => { audio.volume = event.target.value; });
 $('#seek').addEventListener('input', event => { if (audio.duration) audio.currentTime = audio.duration * event.target.value / 100; });
 $('#filter').addEventListener('input', renderTracks);
@@ -212,16 +236,16 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   button.setAttribute('aria-label', `${minimized ? 'Restore' : 'Minimize'} ${button.dataset.window === 'playerWindow' ? 'player' : 'playlist'}`);
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
 }));
-audio.addEventListener('play', () => { startAnalysis(); video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; window.setTimeout(preloadRemainingMedia, 1500); });
+audio.addEventListener('play', () => { startAnalysis(); if (videoEnabled) video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; window.setTimeout(preloadRemainingMedia, 1500); });
 audio.addEventListener('pause', () => { video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
-audio.addEventListener('seeked', () => { if (video.duration) video.currentTime = audio.currentTime % video.duration; });
+audio.addEventListener('seeked', () => { if (videoEnabled && video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
 audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(current + 1));
 document.addEventListener('visibilitychange', () => {
   // iOS can mute/suspend a web audio session when a video keeps decoding in
   // the background. Keep music alive while pausing only the visual layer.
   if (document.hidden) video.pause();
-  else if (playing && video.src) {
+  else if (videoEnabled && playing && video.src) {
     if (video.duration) video.currentTime = audio.currentTime % video.duration;
     video.play().catch(() => {});
   }
@@ -230,4 +254,5 @@ document.addEventListener('keydown', event => { if (event.target.matches('input'
 
 drawSpectrum();
 setupMediaSession();
+applyVideoMode();
 loadPlaylist().catch(error => { $('#nowPlaying').textContent = error.message; $('#state').textContent = '■ NO PLAYLIST'; });
