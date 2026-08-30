@@ -1,6 +1,20 @@
 {
   "tracks": [
     {
+      "title": "Back To Black",
+      "artist": "Amy Winehouse",
+      "audio": "playlist/Amy Winehouse - Back To Black.mp3",
+      "video": "playlist/Amy Winehouse - Back To Black.mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Indila",
+      "artist": "Dernière danse",
+      "audio": "playlist/Dernière danse - Indila.mp3",
+      "video": "playlist/Dernière danse - Indila.mp4",
+      "tone": "dark"
+    },
+    {
       "title": "Tourner Dans Le Vide (Edit Audio)",
       "artist": "Indila",
       "audio": "playlist/Indila - Tourner Dans Le Vide (Edit Audio).mp3",
@@ -40,6 +54,13 @@
       "artist": "Saint Avangeline",
       "audio": "playlist/Saint Avangeline - Lilith.mp3",
       "video": "playlist/Saint Avangeline - Lilith.mp4",
+      "tone": "dark"
+    },
+    {
+      "title": "Adele",
+      "artist": "Skyfall",
+      "audio": "playlist/Skyfall - Adele.mp3",
+      "video": "playlist/Skyfall - Adele.mp4",
       "tone": "dark"
     }
   ]

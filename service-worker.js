@@ -1,4 +1,4 @@
-const CACHE = 'retro-player-shell-v17';
+const CACHE = 'retro-player-shell-v18';
 const APP_SHELL = [
   './',
   './index.html',
@@ -24,6 +24,12 @@ self.addEventListener('fetch', event => {
   // Let the browser stream large music and video files directly. Caching them
   // here can delay seeking/playback and can quickly exhaust mobile storage.
   const path = new URL(event.request.url).pathname;
+  // The playlist can change independently of the app shell. Always request
+  // its latest generated index instead of returning a stale PWA cache entry.
+  if (path.endsWith('/playlist/playlist.json')) {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+    return;
+  }
   if (event.request.destination === 'audio' || event.request.destination === 'video' || /\.(mp3|m4a|ogg|wav|mp4|webm|mov)$/i.test(path)) return;
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
     const copy = response.clone();
