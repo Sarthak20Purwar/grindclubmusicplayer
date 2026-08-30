@@ -6,6 +6,7 @@ const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
 let audioContext, analyser, frequencies;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
+const miniCanvas = $('#miniAnalyzer'), miniPaint = miniCanvas.getContext('2d');
 let preloadStarted = false;
 const mediaPreloads = [];
 let videoEnabled = true;
@@ -216,6 +217,19 @@ function drawSpectrum() {
   }
   paint.fillStyle = '#39ff14'; paint.font = `${Math.max(8, 10 * ratio)}px monospace`; paint.textAlign = 'center';
   labels.forEach((label, i) => paint.fillText(label, side + (i + .5) * ((width - side * 2) / labels.length), height - 5 * ratio));
+  if (miniCanvas.offsetParent) {
+    const miniRatio = devicePixelRatio || 1, miniWidth = miniCanvas.clientWidth * miniRatio, miniHeight = miniCanvas.clientHeight * miniRatio;
+    if (miniCanvas.width !== miniWidth || miniCanvas.height !== miniHeight) { miniCanvas.width = miniWidth; miniCanvas.height = miniHeight; }
+    miniPaint.fillStyle = '#020502'; miniPaint.fillRect(0, 0, miniWidth, miniHeight);
+    const bars = 20, miniGap = Math.max(1, miniRatio), miniBar = (miniWidth - miniGap * (bars - 1)) / bars;
+    for (let barIndex = 0; barIndex < bars; barIndex++) {
+      const frequencyIndex = Math.floor((barIndex / bars) ** 1.65 * (frequencies?.length - 1 || 0));
+      const value = frequencies?.[frequencyIndex] || 0;
+      const barHeight = Math.max(2 * miniRatio, value / 255 * (miniHeight - 6 * miniRatio));
+      miniPaint.fillStyle = value > 190 ? '#b6ffae' : '#39ff14';
+      miniPaint.fillRect(barIndex * (miniBar + miniGap), miniHeight - barHeight, Math.max(1, miniBar), barHeight);
+    }
+  }
   requestAnimationFrame(drawSpectrum);
 }
 
