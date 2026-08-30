@@ -8,6 +8,9 @@ let audioContext, analyser, frequencies, waveform, analysisAudio;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
 const miniCanvas = $('#miniAnalyzer'), miniPaint = miniCanvas.getContext('2d');
 const fallbackFrequencies = new Uint8Array(256), fallbackWaveform = new Uint8Array(512);
+const lastVisualFrequencies = new Uint8Array(256), lastVisualWaveform = new Uint8Array(512);
+const transitionFrequencies = new Uint8Array(256), transitionWaveform = new Uint8Array(512);
+let visualTransitionStart = 0;
 let preloadedIndex = -1, preloadedAudio, preloadedVideo;
 let videoEnabled = true;
 try { videoEnabled = localStorage.getItem('retro-player-video-mode') !== 'music-only'; } catch (_) {}
@@ -31,6 +34,7 @@ async function loadPlaylist() {
 async function selectTrack(index, autoplay = true) {
   current = (index + tracks.length) % tracks.length;
   const track = tracks[current];
+  startVisualizerTransition();
   resetAnalysis();
   audio.src = track.audio;
   $('#nowPlaying').textContent = `${String(current + 1).padStart(2, '0')}. ${track.title} — ${track.artist}`;
@@ -46,6 +50,18 @@ async function selectTrack(index, autoplay = true) {
   } else video.removeAttribute('src');
   renderTracks();
   if (autoplay) await playCurrent();
+}
+
+function startVisualizerTransition() {
+  transitionFrequencies.set(lastVisualFrequencies);
+  transitionWaveform.set(lastVisualWaveform);
+  visualTransitionStart = performance.now();
+}
+
+function copyVisualizerData(source, target, baseline) {
+  for (let index = 0; index < target.length; index++) {
+    target[index] = source[Math.floor(index / Math.max(target.length - 1, 1) * (source.length - 1))] ?? baseline;
+  }
 }
 
 function resetAnalysis() {
@@ -286,8 +302,19 @@ function drawSpectrum() {
     if (playing && energy < 4) liveAnalysis = false;
   }
   else updateFallbackVisualizer();
-  const displayFrequencies = liveAnalysis ? frequencies : fallbackFrequencies;
-  const displayWaveform = liveAnalysis ? waveform : fallbackWaveform;
+  let displayFrequencies = liveAnalysis ? frequencies : fallbackFrequencies;
+  let displayWaveform = liveAnalysis ? waveform : fallbackWaveform;
+  if (visualTransitionStart) {
+    const progress = Math.min(1, (performance.now() - visualTransitionStart) / 280);
+    for (let index = 0; index < transitionFrequencies.length; index++) transitionFrequencies[index] = lastVisualFrequencies[index] * (1 - progress);
+    for (let index = 0; index < transitionWaveform.length; index++) transitionWaveform[index] = 128 + (lastVisualWaveform[index] - 128) * (1 - progress);
+    displayFrequencies = transitionFrequencies;
+    displayWaveform = transitionWaveform;
+    if (progress === 1) visualTransitionStart = 0;
+  } else {
+    copyVisualizerData(displayFrequencies, lastVisualFrequencies, 0);
+    copyVisualizerData(displayWaveform, lastVisualWaveform, 128);
+  }
   const bands = 32, labels = ['57', '134', '400', '1K', '2K', '6K', '16K'], labelHeight = height * .16, plot = height - labelHeight - 8 * ratio, gap = 3 * ratio, side = 8 * ratio, bar = (width - side * 2 - gap * (bands - 1)) / bands, segments = 15, segmentHeight = (plot - (segments - 1) * ratio) / segments;
   for (let band = 0; band < bands; band++) {
     const start = Math.floor((band / bands) ** 1.85 * (displayFrequencies.length - 1));
