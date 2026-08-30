@@ -203,7 +203,12 @@ function startAnalysis() {
   }
   const source = audioContext.createMediaElementSource(analysisAudio || audio);
   source.connect(analyser);
-  analyser.connect(audioContext.destination);
+  if (analysisAudio) {
+    const silentGain = audioContext.createGain();
+    silentGain.gain.value = 0;
+    analyser.connect(silentGain);
+    silentGain.connect(audioContext.destination);
+  } else analyser.connect(audioContext.destination);
 }
 
 function syncAnalysisAudio(shouldPlay = false) {
@@ -212,8 +217,8 @@ function syncAnalysisAudio(shouldPlay = false) {
     analysisAudio.src = audio.currentSrc;
     analysisAudio.load();
   }
-  if (Math.abs(analysisAudio.currentTime - audio.currentTime) > .35) analysisAudio.currentTime = audio.currentTime;
-  if (shouldPlay) analysisAudio.play().catch(() => {});
+  if (Math.abs(analysisAudio.currentTime - audio.currentTime) > .75) analysisAudio.currentTime = audio.currentTime;
+  if (shouldPlay && analysisAudio.paused) analysisAudio.play().catch(() => {});
 }
 
 function updateFallbackVisualizer() {
