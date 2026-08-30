@@ -52,3 +52,31 @@ body.music-only .video-grade {
   margin: 0;
   border-color: #2b6525;
 }
+
+@media (min-width: 701px) {
+  .playlist-window:not(.minimized) {
+    height: 302px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .playlist-window .track-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  .playlist-window .track-list::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .playlist-window .track-list::-webkit-scrollbar-track {
+    background: #050505;
+  }
+
+  .playlist-window .track-list::-webkit-scrollbar-thumb {
+    background: #1d8d10;
+    border: 1px solid #39ff14;
+  }
+}
