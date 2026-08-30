@@ -18,7 +18,7 @@ async function loadPlaylist() {
   loadDurations();
 }
 
-function selectTrack(index, autoplay = true) {
+async function selectTrack(index, autoplay = true) {
   current = (index + tracks.length) % tracks.length;
   const track = tracks[current];
   audio.src = track.audio;
@@ -29,10 +29,26 @@ function selectTrack(index, autoplay = true) {
   if (track.video) {
     video.src = track.video;
     video.load();
-    video.play().catch(() => {});
+    video.currentTime = 0;
   } else video.removeAttribute('src');
   renderTracks();
-  if (autoplay) audio.play().catch(() => setPlaying(false));
+  if (autoplay) await playCurrent();
+}
+
+function waitForVideo() {
+  if (!video.src || video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return Promise.resolve();
+  return new Promise(resolve => {
+    const ready = () => { video.removeEventListener('canplay', ready); resolve(); };
+    video.addEventListener('canplay', ready, { once: true });
+  });
+}
+
+async function playCurrent() {
+  if (video.src) {
+    await waitForVideo();
+    await video.play().catch(() => {});
+  }
+  return audio.play().catch(() => setPlaying(false));
 }
 
 function setPlaying(value) {
@@ -107,11 +123,11 @@ function drawSpectrum() {
   requestAnimationFrame(drawSpectrum);
 }
 
-$('#play').addEventListener('click', () => playing ? audio.pause() : audio.play());
+$('#play').addEventListener('click', () => playing ? audio.pause() : playCurrent());
 $('#previous').addEventListener('click', () => selectTrack(current - 1));
 $('#next').addEventListener('click', () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1));
 $('#miniPrevious').addEventListener('click', () => selectTrack(current - 1));
-$('#miniPlay').addEventListener('click', () => playing ? audio.pause() : audio.play());
+$('#miniPlay').addEventListener('click', () => playing ? audio.pause() : playCurrent());
 $('#miniNext').addEventListener('click', () => selectTrack(shuffle ? Math.floor(Math.random() * tracks.length) : current + 1));
 $('#shuffle').addEventListener('click', event => { shuffle = !shuffle; event.currentTarget.setAttribute('aria-pressed', shuffle); });
 $('#repeat').addEventListener('click', event => { repeat = !repeat; event.currentTarget.setAttribute('aria-pressed', repeat); });
@@ -127,11 +143,12 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   button.setAttribute('aria-label', `${minimized ? 'Restore' : 'Minimize'} ${button.dataset.window === 'playerWindow' ? 'player' : 'playlist'}`);
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
 }));
-audio.addEventListener('play', () => { startAnalysis(); setPlaying(true); });
-audio.addEventListener('pause', () => setPlaying(false));
+audio.addEventListener('play', () => { startAnalysis(); video.play().catch(() => {}); setPlaying(true); });
+audio.addEventListener('pause', () => { video.pause(); setPlaying(false); });
+audio.addEventListener('seeked', () => { if (video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
 audio.addEventListener('ended', () => repeat ? (audio.currentTime = 0, audio.play()) : selectTrack(current + 1));
-document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : audio.play(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(current + 1); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
+document.addEventListener('keydown', event => { if (event.target.matches('input')) return; if (event.key === ' ') { event.preventDefault(); playing ? audio.pause() : playCurrent(); } if (event.key === 'ArrowRight') audio.currentTime += 5; if (event.key === 'ArrowLeft') audio.currentTime -= 5; if (event.key.toLowerCase() === 'n') selectTrack(current + 1); if (event.key.toLowerCase() === 'p') selectTrack(current - 1); });
 
 drawSpectrum();
 loadPlaylist().catch(error => { $('#nowPlaying').textContent = error.message; $('#state').textContent = '■ NO PLAYLIST'; });
