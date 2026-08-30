@@ -2,11 +2,12 @@ const $ = selector => document.querySelector(selector);
 const audio = $('#audio');
 const video = $('#backgroundVideo');
 const list = $('#trackList');
-const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const iosDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
 let audioContext, analyser, frequencies, waveform;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
 const miniCanvas = $('#miniAnalyzer'), miniPaint = miniCanvas.getContext('2d');
+const fallbackFrequencies = new Uint8Array(256), fallbackWaveform = new Uint8Array(512);
 let preloadStarted = false;
 const mediaPreloads = [];
 let videoEnabled = true;
@@ -185,7 +186,7 @@ function startAnalysis() {
   // A MediaElementSource routes sound through Web Audio. iOS commonly
   // suspends that audio route on lock, even though the media clock continues.
   // Keep native audio output on phones so lock-screen playback stays audible.
-  if (mobileDevice) return;
+  if (iosDevice) return;
   if (audioContext) { audioContext.resume(); return; }
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return;
@@ -198,6 +199,19 @@ function startAnalysis() {
   const source = audioContext.createMediaElementSource(audio);
   source.connect(analyser);
   analyser.connect(audioContext.destination);
+}
+
+function updateFallbackVisualizer() {
+  const time = audio.currentTime || 0;
+  for (let index = 0; index < fallbackFrequencies.length; index++) {
+    const contour = Math.max(0, 1 - index / fallbackFrequencies.length * .85);
+    const movement = Math.sin(time * (3.6 + index % 5) + index * .41) * .5 + .5;
+    fallbackFrequencies[index] = playing ? 22 + contour * movement * 150 : 0;
+  }
+  for (let index = 0; index < fallbackWaveform.length; index++) {
+    const wave = Math.sin(index * .09 + time * 13) * .55 + Math.sin(index * .027 - time * 7) * .3;
+    fallbackWaveform[index] = 128 + (playing ? wave * 52 : 0);
+  }
 }
 
 function fitMiniAnalyzer() {
@@ -213,11 +227,14 @@ function drawSpectrum() {
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   paint.fillStyle = '#020502'; paint.fillRect(0, 0, width, height);
   if (analyser) { analyser.getByteFrequencyData(frequencies); analyser.getByteTimeDomainData(waveform); }
+  else updateFallbackVisualizer();
+  const displayFrequencies = frequencies || fallbackFrequencies;
+  const displayWaveform = waveform || fallbackWaveform;
   const bands = 32, labels = ['57', '134', '400', '1K', '2K', '6K', '16K'], labelHeight = height * .16, plot = height - labelHeight - 8 * ratio, gap = 3 * ratio, side = 8 * ratio, bar = (width - side * 2 - gap * (bands - 1)) / bands, segments = 15, segmentHeight = (plot - (segments - 1) * ratio) / segments;
   for (let band = 0; band < bands; band++) {
-    const start = Math.floor((band / bands) ** 1.85 * (frequencies?.length - 1 || 0));
-    const end = Math.max(start + 1, Math.floor(((band + 1) / bands) ** 1.85 * (frequencies?.length || 1)));
-    let volume = 0; for (let i = start; i < end; i++) volume = Math.max(volume, frequencies?.[i] || 0);
+    const start = Math.floor((band / bands) ** 1.85 * (displayFrequencies.length - 1));
+    const end = Math.max(start + 1, Math.floor(((band + 1) / bands) ** 1.85 * displayFrequencies.length));
+    let volume = 0; for (let i = start; i < end; i++) volume = Math.max(volume, displayFrequencies[i] || 0);
     const active = Math.max(1, Math.round(volume / 255 * segments));
     for (let segment = 0; segment < segments; segment++) {
       paint.fillStyle = segment < active ? (segment > 10 ? '#b6ffae' : '#39ff14') : '#12420f';
@@ -230,10 +247,10 @@ function drawSpectrum() {
     const miniRatio = devicePixelRatio || 1, miniWidth = miniCanvas.clientWidth * miniRatio, miniHeight = miniCanvas.clientHeight * miniRatio;
     if (miniCanvas.width !== miniWidth || miniCanvas.height !== miniHeight) { miniCanvas.width = miniWidth; miniCanvas.height = miniHeight; }
     miniPaint.fillStyle = '#020502'; miniPaint.fillRect(0, 0, miniWidth, miniHeight);
-    const middle = miniHeight / 2, points = Math.min(96, waveform?.length || 0);
+    const middle = miniHeight / 2, points = Math.min(96, displayWaveform.length);
     miniPaint.beginPath();
     for (let point = 0; point < Math.max(points, 2); point++) {
-      const sample = waveform?.[Math.floor(point / Math.max(points - 1, 1) * ((waveform?.length || 1) - 1))] ?? 128;
+      const sample = displayWaveform[Math.floor(point / Math.max(points - 1, 1) * (displayWaveform.length - 1))] ?? 128;
       const x = point / Math.max(points - 1, 1) * miniWidth;
       const y = middle + ((sample - 128) / 128) * miniHeight * .42;
       point ? miniPaint.lineTo(x, y) : miniPaint.moveTo(x, y);
