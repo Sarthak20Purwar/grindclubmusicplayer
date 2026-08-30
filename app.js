@@ -13,6 +13,9 @@ const transitionFrequencies = new Uint8Array(256), transitionWaveform = new Uint
 let visualTransitionStart = 0;
 let preloadedIndex = -1, preloadedAudio, preloadedVideo;
 let videoStartToken = 0;
+let trackSelectionToken = 0;
+const VISUAL_TRANSITION_MS = 220;
+let holdTrackStart = false;
 let videoEnabled = true;
 try { videoEnabled = localStorage.getItem('retro-player-video-mode') !== 'music-only'; } catch (_) {}
 
@@ -33,11 +36,15 @@ async function loadPlaylist() {
 }
 
 async function selectTrack(index, autoplay = true) {
+  const token = ++trackSelectionToken;
   current = (index + tracks.length) % tracks.length;
   const track = tracks[current];
   startVisualizerTransition();
   resetAnalysis();
+  audio.pause();
   audio.src = track.audio;
+  audio.load();
+  holdTrackStart = autoplay;
   $('#nowPlaying').textContent = `${String(current + 1).padStart(2, '0')}. ${track.title} — ${track.artist}`;
   $('#playlistMini').textContent = `NOW ${String(current + 1).padStart(2, '0')} · ${track.title} — ${track.artist}`;
   $('#trackNumber').textContent = `TRK ${String(current + 1).padStart(2, '0')}/${String(tracks.length).padStart(2, '0')}`;
@@ -51,7 +58,10 @@ async function selectTrack(index, autoplay = true) {
     if (videoEnabled) video.load();
   } else video.removeAttribute('src');
   renderTracks();
-  if (autoplay) await playCurrent();
+  if (autoplay) {
+    await new Promise(resolve => window.setTimeout(resolve, VISUAL_TRANSITION_MS));
+    if (token === trackSelectionToken) { holdTrackStart = false; await playCurrent(); }
+  }
 }
 
 function startVisualizerTransition() {
@@ -314,7 +324,7 @@ function drawSpectrum() {
   let displayFrequencies = liveAnalysis ? frequencies : fallbackFrequencies;
   let displayWaveform = liveAnalysis ? waveform : fallbackWaveform;
   if (visualTransitionStart) {
-    const progress = Math.min(1, (performance.now() - visualTransitionStart) / 280);
+    const progress = Math.min(1, (performance.now() - visualTransitionStart) / VISUAL_TRANSITION_MS);
     for (let index = 0; index < transitionFrequencies.length; index++) transitionFrequencies[index] = lastVisualFrequencies[index] * (1 - progress);
     for (let index = 0; index < transitionWaveform.length; index++) transitionWaveform[index] = 128 + (lastVisualWaveform[index] - 128) * (1 - progress);
     displayFrequencies = transitionFrequencies;
@@ -381,7 +391,7 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
   requestAnimationFrame(fitMiniAnalyzer);
 }));
-audio.addEventListener('play', () => { startAnalysis(); syncAnalysisAudio(true); startVideoWhenReady(); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+audio.addEventListener('play', () => { if (holdTrackStart) { audio.pause(); return; } startAnalysis(); syncAnalysisAudio(true); startVideoWhenReady(); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
 audio.addEventListener('pause', () => { analysisAudio?.pause(); video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audio.addEventListener('seeked', () => { if (videoEnabled && video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { syncAnalysisAudio(playing); if (audio.currentTime >= 8) preloadNextTrack(); const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
