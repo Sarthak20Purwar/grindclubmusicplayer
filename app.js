@@ -334,7 +334,12 @@ audio.addEventListener('error', () => { $('#state').textContent = '■ SKIPPING'
 document.addEventListener('visibilitychange', () => {
   // iOS can mute/suspend a web audio session when a video keeps decoding in
   // the background. Keep music alive while pausing only the visual layer.
-  if (document.hidden) { analysisAudio?.pause(); audioContext?.suspend(); video.pause(); }
+  if (document.hidden) {
+    // Desktop audio is routed through Web Audio for the live analyser, so do
+    // not suspend that context when a tab/window is hidden.
+    if (iosDevice) { analysisAudio?.pause(); audioContext?.suspend(); }
+    video.pause();
+  }
   else if (videoEnabled && playing && video.src) {
     startAnalysis();
     syncAnalysisAudio(true);

@@ -1,4 +1,4 @@
-const CACHE = 'retro-player-shell-v18';
+const CACHE = 'retro-player-shell-v19';
 const APP_SHELL = [
   './',
   './index.html',
