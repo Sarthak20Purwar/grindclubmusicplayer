@@ -155,7 +155,6 @@ function waitForVideo() {
 }
 
 async function playCurrent() {
-  startAnalysis();
   if (videoEnabled && video.src) {
     await waitForVideo();
     await video.play().catch(() => {});
@@ -212,10 +211,16 @@ function startAnalysis() {
   analyser.smoothingTimeConstant = .72;
   frequencies = new Uint8Array(analyser.frequencyBinCount);
   waveform = new Uint8Array(analyser.fftSize);
-  analysisAudio = new Audio();
-  analysisAudio.muted = true;
-  analysisAudio.preload = 'auto';
-  const source = audioContext.createMediaElementSource(analysisAudio);
+  const capturedStream = typeof audio.captureStream === 'function' ? audio.captureStream() : typeof audio.mozCaptureStream === 'function' ? audio.mozCaptureStream() : null;
+  let source;
+  if (capturedStream?.getAudioTracks().length) {
+    source = audioContext.createMediaStreamSource(capturedStream);
+  } else {
+    analysisAudio = new Audio();
+    analysisAudio.muted = true;
+    analysisAudio.preload = 'auto';
+    source = audioContext.createMediaElementSource(analysisAudio);
+  }
   source.connect(analyser);
   const silentGain = audioContext.createGain();
   silentGain.gain.value = 0;
@@ -235,10 +240,11 @@ function syncAnalysisAudio(shouldPlay = false) {
 
 function updateFallbackVisualizer() {
   const time = audio.currentTime || 0;
+  const pulse = Math.pow(Math.max(0, Math.sin(time * 5.4)), 4);
   for (let index = 0; index < fallbackFrequencies.length; index++) {
     const contour = Math.max(0, 1 - index / fallbackFrequencies.length * .85);
     const movement = Math.sin(time * (3.6 + index % 5) + index * .41) * .5 + .5;
-    fallbackFrequencies[index] = playing ? 22 + contour * movement * 150 : 0;
+    fallbackFrequencies[index] = playing ? 30 + contour * (movement * 130 + pulse * 90) : 0;
   }
   for (let index = 0; index < fallbackWaveform.length; index++) {
     const wave = Math.sin(index * .09 + time * 13) * .55 + Math.sin(index * .027 - time * 7) * .3;
@@ -258,8 +264,13 @@ function drawSpectrum() {
   const ratio = Math.min(devicePixelRatio || 1, 1.5), width = canvas.clientWidth * ratio, height = canvas.clientHeight * ratio;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   paint.fillStyle = '#020502'; paint.fillRect(0, 0, width, height);
-  const liveAnalysis = analyser && (!analysisAudio || !analysisAudio.paused);
-  if (liveAnalysis) { analyser.getByteFrequencyData(frequencies); analyser.getByteTimeDomainData(waveform); }
+  let liveAnalysis = analyser && (!analysisAudio || !analysisAudio.paused);
+  if (liveAnalysis) {
+    analyser.getByteFrequencyData(frequencies);
+    analyser.getByteTimeDomainData(waveform);
+    const energy = frequencies.reduce((total, value) => total + value, 0) / frequencies.length;
+    if (playing && energy < 4) liveAnalysis = false;
+  }
   else updateFallbackVisualizer();
   const displayFrequencies = liveAnalysis ? frequencies : fallbackFrequencies;
   const displayWaveform = liveAnalysis ? waveform : fallbackWaveform;
