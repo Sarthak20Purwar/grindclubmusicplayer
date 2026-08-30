@@ -5,6 +5,8 @@ const list = $('#trackList');
 let tracks = [], current = 0, playing = false, shuffle = false, repeat = false;
 let audioContext, analyser, frequencies;
 const canvas = $('#analyzer'), paint = canvas.getContext('2d');
+let preloadStarted = false;
+const mediaPreloads = [];
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
@@ -61,6 +63,31 @@ async function playCurrent() {
     await video.play().catch(() => {});
   }
   return audio.play().catch(() => setPlaying(false));
+}
+
+function preloadRemainingMedia() {
+  if (preloadStarted) return;
+  preloadStarted = true;
+  // Keep the elements alive so the browser can retain its media buffers. The
+  // browser schedules these lower-priority requests behind the active track.
+  tracks.forEach((track, index) => {
+    if (index === current) return;
+    const audioPreload = new Audio();
+    audioPreload.preload = 'auto';
+    audioPreload.src = track.audio;
+    audioPreload.load();
+    mediaPreloads.push(audioPreload);
+
+    if (track.video) {
+      const videoPreload = document.createElement('video');
+      videoPreload.preload = 'auto';
+      videoPreload.muted = true;
+      videoPreload.playsInline = true;
+      videoPreload.src = track.video;
+      videoPreload.load();
+      mediaPreloads.push(videoPreload);
+    }
+  });
 }
 
 function setPlaying(value) {
@@ -155,7 +182,7 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   button.setAttribute('aria-label', `${minimized ? 'Restore' : 'Minimize'} ${button.dataset.window === 'playerWindow' ? 'player' : 'playlist'}`);
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
 }));
-audio.addEventListener('play', () => { startAnalysis(); video.play().catch(() => {}); setPlaying(true); });
+audio.addEventListener('play', () => { startAnalysis(); video.play().catch(() => {}); setPlaying(true); window.setTimeout(preloadRemainingMedia, 1500); });
 audio.addEventListener('pause', () => { video.pause(); setPlaying(false); });
 audio.addEventListener('seeked', () => { if (video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
