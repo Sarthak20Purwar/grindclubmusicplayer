@@ -12,6 +12,7 @@ const lastVisualFrequencies = new Uint8Array(256), lastVisualWaveform = new Uint
 const transitionFrequencies = new Uint8Array(256), transitionWaveform = new Uint8Array(512);
 let visualTransitionStart = 0;
 let preloadedIndex = -1, preloadedAudio, preloadedVideo;
+let videoStartToken = 0;
 let videoEnabled = true;
 try { videoEnabled = localStorage.getItem('retro-player-video-mode') !== 'music-only'; } catch (_) {}
 
@@ -42,6 +43,7 @@ async function selectTrack(index, autoplay = true) {
   $('#trackNumber').textContent = `TRK ${String(current + 1).padStart(2, '0')}/${String(tracks.length).padStart(2, '0')}`;
   updateMediaSession(track);
   video.className = `background-video ${track.tone === 'light' ? 'light' : 'dark'}`;
+  videoStartToken++;
   if (track.video) {
     video.src = track.video;
     video.currentTime = 0;
@@ -184,11 +186,18 @@ function waitForVideo() {
 }
 
 async function playCurrent() {
-  if (videoEnabled && video.src) {
-    await waitForVideo();
-    await video.play().catch(() => {});
-  }
-  return audio.play().catch(() => setPlaying(false));
+  const started = audio.play().catch(() => setPlaying(false));
+  startVideoWhenReady();
+  return started;
+}
+
+async function startVideoWhenReady() {
+  if (!videoEnabled || !video.src) return;
+  const token = videoStartToken;
+  await waitForVideo();
+  if (token !== videoStartToken || audio.paused || !videoEnabled) return;
+  if (video.duration) video.currentTime = audio.currentTime % video.duration;
+  video.play().catch(() => {});
 }
 
 function setPlaying(value) {
@@ -372,7 +381,7 @@ document.querySelectorAll('.window-toggle').forEach(button => button.addEventLis
   $('.deck').classList.toggle('all-minimized', [...document.querySelectorAll('.window')].every(window => window.classList.contains('minimized')));
   requestAnimationFrame(fitMiniAnalyzer);
 }));
-audio.addEventListener('play', () => { startAnalysis(); syncAnalysisAudio(true); if (videoEnabled) video.play().catch(() => {}); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+audio.addEventListener('play', () => { startAnalysis(); syncAnalysisAudio(true); startVideoWhenReady(); setPlaying(true); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
 audio.addEventListener('pause', () => { analysisAudio?.pause(); video.pause(); setPlaying(false); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
 audio.addEventListener('seeked', () => { if (videoEnabled && video.duration) video.currentTime = audio.currentTime % video.duration; });
 audio.addEventListener('timeupdate', () => { syncAnalysisAudio(playing); if (audio.currentTime >= 8) preloadNextTrack(); const percent = audio.duration ? audio.currentTime / audio.duration * 100 : 0; $('#seek').value = percent; $('#elapsed').textContent = formatTime(audio.currentTime); $('#clock').textContent = formatTime(audio.currentTime); $('#duration').textContent = formatTime(audio.duration); });
