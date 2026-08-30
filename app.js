@@ -258,10 +258,11 @@ function drawSpectrum() {
   const ratio = Math.min(devicePixelRatio || 1, 1.5), width = canvas.clientWidth * ratio, height = canvas.clientHeight * ratio;
   if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
   paint.fillStyle = '#020502'; paint.fillRect(0, 0, width, height);
-  if (analyser) { analyser.getByteFrequencyData(frequencies); analyser.getByteTimeDomainData(waveform); }
+  const liveAnalysis = analyser && (!analysisAudio || !analysisAudio.paused);
+  if (liveAnalysis) { analyser.getByteFrequencyData(frequencies); analyser.getByteTimeDomainData(waveform); }
   else updateFallbackVisualizer();
-  const displayFrequencies = frequencies || fallbackFrequencies;
-  const displayWaveform = waveform || fallbackWaveform;
+  const displayFrequencies = liveAnalysis ? frequencies : fallbackFrequencies;
+  const displayWaveform = liveAnalysis ? waveform : fallbackWaveform;
   const bands = 32, labels = ['57', '134', '400', '1K', '2K', '6K', '16K'], labelHeight = height * .16, plot = height - labelHeight - 8 * ratio, gap = 3 * ratio, side = 8 * ratio, bar = (width - side * 2 - gap * (bands - 1)) / bands, segments = 15, segmentHeight = (plot - (segments - 1) * ratio) / segments;
   for (let band = 0; band < bands; band++) {
     const start = Math.floor((band / bands) ** 1.85 * (displayFrequencies.length - 1));
